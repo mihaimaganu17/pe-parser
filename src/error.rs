@@ -6,6 +6,8 @@ pub type Result<T> = std::result::Result<T, PeError>;
 pub enum PeError {
     UnknownPath(String),
     FileReadFailed(std::io::Error),
+    SliceConversionFailed(std::array::TryFromSliceError),
+    IntConversionFailed(std::num::TryFromIntError),
 }
 
 impl fmt::Display for PeError {
@@ -20,3 +22,14 @@ impl From<std::io::Error> for PeError {
     }
 }
 
+impl From<std::array::TryFromSliceError> for PeError {
+    fn from(err: std::array::TryFromSliceError) -> Self {
+        PeError::SliceConversionFailed(err)
+    }
+}
+
+impl From<std::num::TryFromIntError> for PeError {
+    fn from(err: std::num::TryFromIntError) -> Self {
+        PeError::IntConversionFailed(err)
+    }
+}

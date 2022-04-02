@@ -1,6 +1,8 @@
 /target
 *.lock
 /testdata
+*.swp
+/notebooks
 
 
 # Added by cargo

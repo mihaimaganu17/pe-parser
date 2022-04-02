@@ -1,6 +1,11 @@
-use std::{fs, fmt};
+use std::{fs};
 
+pub mod headers;
 pub mod error;
+
+use crate::{
+    headers::{dos::DosHeader},
+};
 use error::Result;
 
 /// Object representing a Portable Executable file(or PE) as described by
@@ -8,67 +13,51 @@ use error::Result;
 pub struct PE {
     /// A vector of bytes representing all the byte in the file
     data: Vec<u8>,
+    /// MS-DOS Header
+    dos_header: DosHeader,
+    /// MS-DOS Stub -> Not parsed
+    dos_stub: Vec<u8>,
 }
 
 impl PE {
     /// Attempts to parse a PE from the given `file_path`. If the path does not
     /// exist, it returns an error
-    pub fn from_path(file_path: &str) -> Result<PE> {
+    pub fn from_path(file_path: &str) -> Result<Self> {
         let data = fs::read(file_path)?;
-        Ok( Self { data } )
+        Self::from_bytes(&data)
     }
 
     /// Attempts to construct a PE from the given `bytes` slice
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        let data = Vec::from(bytes);
-        Self { data }
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        // Construct data from bytes received
+        let mut data = Vec::from(bytes);
+        // Parse the MS-DOS header
+        let dos_header = DosHeader::from_bytes(
+            &mut data.drain(..DosHeader::len()).collect())?;
+        // Consume the MS-DOS stub (or everything until the PE header)
+        let dos_stub = data.drain(..usize::try_from(dos_header.e_lfanew)?)
+            .collect();
+
+        Ok(Self {
+            data,
+            dos_header,
+            dos_stub
+        })
+    }
+
+    /// Return how much data has not been parsed
+    pub fn remaining_bytes(&self) -> usize {
+        self.data.len()
     }
 }
 
-struct DosHeader {
-    /// Magic number
-    e_magic:        u16,
-    /// Bytes on last page of file
-    e_cblp:         u16,
-    /// Pages in file
-    e_cp:           u16,
-    /// Relocations
-    e_crlc:         u16,
-    /// Size of header in paragraphs
-    e_cparhdr:      u16,
-    /// Minimum extra paragraphs needed
-    e_minalloc:     u16,
-    /// Maximum extra paragraphs needed
-    e_maxalloc:     u16,
-    /// Initial (relative) SS value
-    e_ss:           u16,
-    /// Initial SP value
-    e_sp:           u16,
-    /// Checksum
-    e_csum:         u16,
-    /// Initial IP value
-    e_ip:           u16,
-    /// Initial (relative) CS value
-    e_cs:           u16,
-    /// File address of relocation table
-    e_lfarlc:       u16,
-    /// Overlay number
-    e_ovno:         u16,
-    /// Reserved words
-    e_res:          Vec<u16>,
-    /// OEM identifier (for e_oeminfo)
-    e_oemid:        u16,
-    /// OEM information; e_oemid specific
-    e_oeminfo:      u16,
-    /// Reserved words
-    e_res2:         Vec<u16>,
-    /// File address of new exe header
-    e_lfanew:       u32,
-}
 
 #[cfg(test)]
 mod tests {
     use super::PE;
+
+    /// `MZ` Magic used to identify a PE in MS-DOS Header
+    const MZ: u16 = 0x5a4d;
 
     #[test]
     fn it_works() {
@@ -77,8 +66,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    // TODO: Make this tests for all files in the testdata
     fn pe_read_from_path_fails() {
-        let new = PE::from_path("new_pe").unwrap();
+        let new = PE::from_path("testdata/64bit/notepad.exe").unwrap();
+        assert_eq!(MZ, new.dos_header.e_magic);
+        assert_eq!(0xf8, new.dos_header.e_lfanew);
     }
 }
