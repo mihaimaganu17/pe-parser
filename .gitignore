@@ -1,5 +1,6 @@
 /target
 *.lock
+/testdata
 
 
 # Added by cargo
