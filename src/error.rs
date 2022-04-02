@@ -8,6 +8,7 @@ pub enum PeError {
     FileReadFailed(std::io::Error),
     SliceConversionFailed(std::array::TryFromSliceError),
     IntConversionFailed(std::num::TryFromIntError),
+    BufferTooSmall,
 }
 
 impl fmt::Display for PeError {

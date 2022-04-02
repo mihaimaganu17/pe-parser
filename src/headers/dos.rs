@@ -1,4 +1,7 @@
-use crate::error::Result;
+use crate::{
+    error::Result,
+    parsing::*
+};
 /// MS-DOS Legacy header
 #[derive(Debug)]
 pub struct DosHeader {
@@ -44,44 +47,30 @@ pub struct DosHeader {
 
 impl DosHeader {
     pub fn from_bytes(bytes: &mut Vec<u8>) -> Result<Self> {
-        let e_magic = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_cblp = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_cp = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_crlc = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_cparhdr = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_minalloc = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_maxalloc = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_ss = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_sp = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_csum = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_ip = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_cs = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_lfarlc = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_ovno = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
+        let e_magic     = take_u16(bytes)?;
+        let e_cblp      = take_u16(bytes)?;
+        let e_cp        = take_u16(bytes)?;
+        let e_crlc      = take_u16(bytes)?;
+        let e_cparhdr   = take_u16(bytes)?;
+        let e_minalloc  = take_u16(bytes)?;
+        let e_maxalloc  = take_u16(bytes)?;
+        let e_ss        = take_u16(bytes)?;
+        let e_sp        = take_u16(bytes)?;
+        let e_csum      = take_u16(bytes)?;
+        let e_ip        = take_u16(bytes)?;
+        let e_cs        = take_u16(bytes)?;
+        let e_lfarlc    = take_u16(bytes)?;
+        let e_ovno      = take_u16(bytes)?;
+
         let e_res = bytes.drain(..8).collect::<Vec<u8>>().chunks(2)
-            .map(|x| u16::from_le_bytes(x.try_into().unwrap())).collect();
-        let e_oemid= u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
-        let e_oeminfo = u16::from_le_bytes(
-            bytes.drain(..2).as_slice().try_into()?);
+            .map(|x| take_u16(&mut x.to_vec()).unwrap()).collect();
+
+        let e_oemid     = take_u16(bytes)?;
+        let e_oeminfo   = take_u16(bytes)?;
+
         let e_res2 = bytes.drain(..20).collect::<Vec<u8>>().chunks(2)
-            .map(|x| u16::from_le_bytes(x.try_into().unwrap())).collect();
-        let e_lfanew = u32::from_le_bytes(
-            bytes.drain(..4).as_slice().try_into()?);
+            .map(|x| take_u16(&mut x.to_vec()).unwrap()).collect();
+        let e_lfanew    = take_u32(bytes)?;
 
         Ok( DosHeader {
             e_magic, e_cblp, e_cp, e_crlc, e_cparhdr, e_minalloc, e_maxalloc,

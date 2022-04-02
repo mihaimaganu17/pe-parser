@@ -1,6 +1,7 @@
 use std::{fs};
 
 pub mod headers;
+pub mod parsing;
 pub mod error;
 
 use crate::{
@@ -14,9 +15,9 @@ pub struct PE {
     /// A vector of bytes representing all the byte in the file
     data: Vec<u8>,
     /// MS-DOS Header
-    dos_header: DosHeader,
+    pub dos_header: DosHeader,
     /// MS-DOS Stub -> Not parsed
-    dos_stub: Vec<u8>,
+    pub dos_stub: Vec<u8>,
 }
 
 impl PE {
