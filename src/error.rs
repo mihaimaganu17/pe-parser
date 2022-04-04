@@ -9,6 +9,7 @@ pub enum PeError {
     SliceConversionFailed(std::array::TryFromSliceError),
     IntConversionFailed(std::num::TryFromIntError),
     BufferTooSmall,
+    InvalidMachineType(u16),
 }
 
 impl fmt::Display for PeError {

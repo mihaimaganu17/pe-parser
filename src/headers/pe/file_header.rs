@@ -1,17 +1,17 @@
 use crate::{
     headers::pe::{
         machine::MachineType,
-        characteristics::Characteristics,
     },
     parsing::*,
     error::Result,
 };
 
+/// Also known as COFF header
 pub struct FileHeader {
     /// PE Magic
     pub magic:                   u32,
     /// Identifies the type of target machine.
-    pub machine:                 u16,//MachineType,
+    pub machine:                 MachineType,
     /// Indicated the size of the section table
     pub number_of_sections:      u16,
     /// The low 32 bits of the number of seconds since Epoch
@@ -27,14 +27,14 @@ pub struct FileHeader {
     /// Required for executable files but not for object files.
     pub size_of_optional_header: u16,
     /// Characteristics flags
-    pub characteristics:         u16,//Characteristics,
+    pub characteristics:         u16,
 }
 
 
 impl FileHeader {
     pub fn from_bytes(bytes: &mut Vec<u8>) -> Result<Self> {
         let magic                   = take_u32(bytes)?;
-        let machine                 = take_u16(bytes)?;
+        let machine                 = take_u16(bytes)?.try_into()?;
         let number_of_sections      = take_u16(bytes)?;
         let time_date_stamp         = take_u32(bytes)?;
         let pointer_to_symbol_table = take_u32(bytes)?;
@@ -47,5 +47,9 @@ impl FileHeader {
             pointer_to_symbol_table, number_of_symbols,
             size_of_optional_header, characteristics
         })
+    }
+
+    pub fn len() -> usize {
+        24usize
     }
 }

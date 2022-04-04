@@ -1,4 +1,5 @@
-pub enum Characteristics {
+#[derive(Debug, PartialEq)]
+pub enum CharacteristicsFlag {
     /// This indicates that the file does not contain base relocations and must
     /// therefore be loaded at its preferred base address. If the base address
     /// is not available, the loader reports and error. The default behavior of
@@ -40,4 +41,45 @@ pub enum Characteristics {
     UpSystemOnly = 0x4000,
     /// Big endian. This flag is deprecated and should be zero
     BytesReversedHi = 0x8000,
+    /// Invalid
+    Invalid = 0x0,
 }
+
+impl CharacteristicsFlag {
+    pub fn to_vec(value: u16) -> Vec<Self> {
+        let mut characteristics = Vec::new();
+
+        // Cycle through every bit flag
+        for i in 0..16 {
+            let check_flag = 1 << i;
+            // Check if flag is present
+            let new_flag = match check_flag & value {
+                0x0001 => Self::RelocsStripped,
+                0x0002 => Self::ExecutableImage,
+                0x0004 => Self::LineNumsStripped,
+                0x0008 => Self::LocalSymsStripped,
+                0x0010 => Self::AggressiveWsTrim,
+                0x0020 => Self::LargeAddressAware,
+                0x0040 => Self::Reserved,
+                0x0080 => Self::BytesReversedLo,
+                0x0100 => Self::Machine32Bit,
+                0x0200 => Self::DebugStripped,
+                0x0400 => Self::RemovableRunFromSwap,
+                0x0800 => Self::NetRunFromSwap,
+                0x1000 => Self::System,
+                0x2000 => Self::Dll,
+                0x4000 => Self::UpSystemOnly,
+                0x8000 => Self::BytesReversedHi,
+                // This option is only meant to satisfy Rust's pattern
+                // exhaustive matching
+                _ => Self::Invalid,
+            };
+            // If the flag is not invalid we add it to our list
+            if new_flag != Self::Invalid {
+                characteristics.push(new_flag);
+            }
+        }
+        characteristics
+    }
+}
+

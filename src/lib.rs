@@ -5,7 +5,12 @@ pub mod parsing;
 pub mod error;
 
 use crate::{
-    headers::{dos::DosHeader},
+    headers::{
+        dos::DosHeader,
+        pe::{
+            file_header::FileHeader,
+        },
+    },
 };
 use error::Result;
 
@@ -18,6 +23,8 @@ pub struct PE {
     pub dos_header: DosHeader,
     /// MS-DOS Stub -> Not parsed
     pub dos_stub: Vec<u8>,
+    /// PE File Header
+    pub file_header: FileHeader,
 }
 
 impl PE {
@@ -32,17 +39,27 @@ impl PE {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // Construct data from bytes received
         let mut data = Vec::from(bytes);
+
         // Parse the MS-DOS header
         let dos_header = DosHeader::from_bytes(
             &mut data.drain(..DosHeader::len()).collect())?;
+
+        // Initialize the file header offset
+        let file_header_offset = usize::try_from(dos_header.e_lfanew)?;
+
         // Consume the MS-DOS stub (or everything until the PE header)
-        let dos_stub = data.drain(..usize::try_from(dos_header.e_lfanew)?)
+        let dos_stub = data.drain(..file_header_offset - DosHeader::len())
             .collect();
+
+        // Read the PE File header
+        let file_header = FileHeader::from_bytes(
+            &mut data.drain(..FileHeader::len()).collect())?;
 
         Ok(Self {
             data,
             dos_header,
-            dos_stub
+            dos_stub,
+            file_header
         })
     }
 
@@ -55,7 +72,7 @@ impl PE {
 
 #[cfg(test)]
 mod tests {
-    use super::PE;
+    use super::*;
 
     /// `MZ` Magic used to identify a PE in MS-DOS Header
     const MZ: u16 = 0x5a4d;
@@ -72,5 +89,6 @@ mod tests {
         let new = PE::from_path("testdata/64bit/notepad.exe").unwrap();
         assert_eq!(MZ, new.dos_header.e_magic);
         assert_eq!(0xf8, new.dos_header.e_lfanew);
+        assert_eq!(0x4550, new.file_header.magic);
     }
 }
