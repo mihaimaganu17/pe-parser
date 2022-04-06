@@ -10,6 +10,7 @@ pub enum PeError {
     IntConversionFailed(std::num::TryFromIntError),
     BufferTooSmall,
     InvalidMachineType(u16),
+    Unimplemented,
 }
 
 impl fmt::Display for PeError {
