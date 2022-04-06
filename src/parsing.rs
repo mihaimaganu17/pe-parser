@@ -2,6 +2,17 @@ use crate::{
     error::{Result, PeError}
 };
 
+/// Helper function that consumes 1 byte(u8) from `bytes` and returns a u16
+/// as result. In case `bytes` buffer is too small it returns an error.
+pub fn take_u8(bytes: &mut Vec<u8>) -> Result<u8> {
+    if bytes.len() < 1 {
+        return Err(PeError::BufferTooSmall)
+    }
+
+    Ok(u8::from_le_bytes(
+        bytes.drain(..1).as_slice().try_into()?))
+}
+
 /// Helper function that consumes 2 bytes(u8) from `bytes` and returns a u16
 /// as result. In case `bytes` buffer is too small it returns an error.
 pub fn take_u16(bytes: &mut Vec<u8>) -> Result<u16> {

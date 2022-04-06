@@ -9,6 +9,7 @@ use crate::{
         dos::DosHeader,
         pe::{
             file_header::FileHeader,
+            opt_header::{WindowsSpecific, OptionalHeader}
         },
     },
 };
@@ -25,6 +26,8 @@ pub struct PE {
     pub dos_stub: Vec<u8>,
     /// PE File Header
     pub file_header: FileHeader,
+    /// PE Optional Header
+    pub opt_header: OptionalHeader,
 }
 
 impl PE {
@@ -52,14 +55,17 @@ impl PE {
             .collect();
 
         // Read the PE File header
-        let file_header = FileHeader::from_bytes(
-            &mut data.drain(..FileHeader::len()).collect())?;
+        let file_header = FileHeader::from_bytes(&mut data)?;
+
+        // Read the PE optional header
+        let opt_header = OptionalHeader::from_bytes(&mut data)?;
 
         Ok(Self {
             data,
             dos_header,
             dos_stub,
-            file_header
+            file_header,
+            opt_header
         })
     }
 
@@ -73,6 +79,7 @@ impl PE {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{Duration, Instant};
 
     /// `MZ` Magic used to identify a PE in MS-DOS Header
     const MZ: u16 = 0x5a4d;
@@ -86,9 +93,16 @@ mod tests {
     #[test]
     // TODO: Make this tests for all files in the testdata
     fn pe_read_from_path_fails() {
+        let start = Instant::now();
         let new = PE::from_path("testdata/64bit/notepad.exe").unwrap();
         assert_eq!(MZ, new.dos_header.e_magic);
         assert_eq!(0xf8, new.dos_header.e_lfanew);
         assert_eq!(0x4550, new.file_header.magic);
+        let image_base = match new.opt_header.win_fields {
+            WindowsSpecific::PE64(pe64) => println!("{}", pe64.image_base),
+            WindowsSpecific::PE32(pe32) => println!("{}", pe32.image_base)
+        };
+        let duration = start.elapsed();
+        println!("Time elapsed in expensive_function() is: {:?}", duration);
     }
 }
