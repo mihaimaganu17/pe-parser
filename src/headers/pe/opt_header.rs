@@ -31,18 +31,19 @@ pub struct OptionalHeader {
 }
 
 impl OptionalHeader {
-    pub fn from_bytes(bytes: &mut Vec<u8>) -> Result<Self> {
-        let magic = take_u16(bytes)?.into();
-        let major_linker_version = take_u8(bytes)?;
-        let minor_linker_version = take_u8(bytes)?;
-        let size_of_code = take_u32(bytes)?;
-        let size_of_initialized_data = take_u32(bytes)?;
-        let size_of_uninitialized_data = take_u32(bytes)?;
-        let addr_of_entry_point = take_u32(bytes)?;
-        let base_of_code = take_u32(bytes)?;
-        let win_fields = WindowsSpecific::from_bytes(magic, bytes)?;
+    pub fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8])> {
+        let (magic, bytes) = take_u16(bytes)?;
+        let magic = magic.into();
+        let (major_linker_version, bytes) = take_u8(bytes)?;
+        let (minor_linker_version, bytes) = take_u8(bytes)?;
+        let (size_of_code, bytes) = take_u32(bytes)?;
+        let (size_of_initialized_data, bytes) = take_u32(bytes)?;
+        let (size_of_uninitialized_data, bytes) = take_u32(bytes)?;
+        let (addr_of_entry_point, bytes) = take_u32(bytes)?;
+        let (base_of_code, bytes) = take_u32(bytes)?;
+        let (win_fields, bytes) = WindowsSpecific::from_bytes(magic, bytes)?;
 
-        Ok( Self {
+        Ok(( Self {
             magic,
             major_linker_version,
             minor_linker_version,
@@ -52,7 +53,7 @@ impl OptionalHeader {
             addr_of_entry_point,
             base_of_code,
             win_fields
-        })
+        }, bytes))
     }
 }
 
@@ -81,10 +82,17 @@ pub enum WindowsSpecific {
 }
 
 impl WindowsSpecific {
-    pub fn from_bytes(magic: ImageType, bytes: &mut Vec<u8>) -> Result<Self> {
+    pub fn from_bytes(magic: ImageType, bytes: &[u8])
+            -> Result<(Self, &[u8])> {
         match magic {
-            ImageType::Pe32 => Ok(Self::PE32(Pe32::from_bytes(bytes)?)),
-            ImageType::Pe64 => Ok(Self::PE64(Pe64::from_bytes(bytes)?)),
+            ImageType::Pe32 => {
+                let (pe32, bytes) = Pe32::from_bytes(bytes)?;
+                Ok((Self::PE32(pe32), bytes))
+            },
+            ImageType::Pe64 => {
+                let (pe64, bytes) = Pe64::from_bytes(bytes)?;
+                Ok((Self::PE64(pe64), bytes))
+            },
             ImageType::ROM => Err(PeError::Unimplemented),
             ImageType::Unknown => Err(PeError::Unimplemented)
         }
@@ -156,31 +164,31 @@ pub struct Pe32 {
 }
 
 impl Pe32 {
-    pub fn from_bytes(bytes: &mut Vec<u8>) -> Result<Self> {
-        let base_of_data = take_u32(bytes)?;
-        let image_base = take_u32(bytes)?;
-        let section_alignment = take_u32(bytes)?;
-        let file_alignment = take_u32(bytes)?;
-        let major_os_version = take_u16(bytes)?;
-        let minor_os_version = take_u16(bytes)?;
-        let major_image_version = take_u16(bytes)?;
-        let minor_image_version = take_u16(bytes)?;
-        let major_subsys_version = take_u16(bytes)?;
-        let minor_subsys_version = take_u16(bytes)?;
-        let win32_version_value = take_u32(bytes)?;
-        let size_of_image = take_u32(bytes)?;
-        let size_of_headers = take_u32(bytes)?;
-        let checksum = take_u32(bytes)?;
-        let subsystem = take_u16(bytes)?;
-        let dll_characteristics = take_u16(bytes)?;
-        let size_of_stack_reserve = take_u32(bytes)?;
-        let size_of_stack_commit = take_u32(bytes)?;
-        let size_of_heap_reserve = take_u32(bytes)?;
-        let size_of_heap_commit = take_u32(bytes)?;
-        let loader_flags = take_u32(bytes)?;
-        let number_of_rva_and_sizes = take_u32(bytes)?;
+    pub fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8])> {
+        let (base_of_data, bytes) = take_u32(bytes)?;
+        let (image_base, bytes) = take_u32(bytes)?;
+        let (section_alignment, bytes) = take_u32(bytes)?;
+        let (file_alignment, bytes) = take_u32(bytes)?;
+        let (major_os_version, bytes) = take_u16(bytes)?;
+        let (minor_os_version, bytes) = take_u16(bytes)?;
+        let (major_image_version, bytes) = take_u16(bytes)?;
+        let (minor_image_version, bytes) = take_u16(bytes)?;
+        let (major_subsys_version, bytes) = take_u16(bytes)?;
+        let (minor_subsys_version, bytes) = take_u16(bytes)?;
+        let (win32_version_value, bytes) = take_u32(bytes)?;
+        let (size_of_image, bytes) = take_u32(bytes)?;
+        let (size_of_headers, bytes) = take_u32(bytes)?;
+        let (checksum, bytes) = take_u32(bytes)?;
+        let (subsystem, bytes) = take_u16(bytes)?;
+        let (dll_characteristics, bytes) = take_u16(bytes)?;
+        let (size_of_stack_reserve, bytes) = take_u32(bytes)?;
+        let (size_of_stack_commit, bytes) = take_u32(bytes)?;
+        let (size_of_heap_reserve, bytes) = take_u32(bytes)?;
+        let (size_of_heap_commit, bytes) = take_u32(bytes)?;
+        let (loader_flags, bytes) = take_u32(bytes)?;
+        let (number_of_rva_and_sizes, bytes) = take_u32(bytes)?;
 
-        Ok( Self {
+        Ok(( Self {
             base_of_data, image_base, section_alignment, file_alignment,
             major_os_version, minor_os_version,
             major_image_version, minor_image_version,
@@ -190,7 +198,7 @@ impl Pe32 {
             size_of_stack_reserve, size_of_stack_commit,
             size_of_heap_reserve, size_of_heap_commit,
             loader_flags, number_of_rva_and_sizes
-        })
+        }, bytes))
     }
 }
 
@@ -256,30 +264,30 @@ pub struct Pe64 {
 }
 
 impl Pe64 {
-    pub fn from_bytes(bytes: &mut Vec<u8>) -> Result<Self> {
-        let image_base = take_u64(bytes)?;
-        let section_alignment = take_u32(bytes)?;
-        let file_alignment = take_u32(bytes)?;
-        let major_os_version = take_u16(bytes)?;
-        let minor_os_version = take_u16(bytes)?;
-        let major_image_version = take_u16(bytes)?;
-        let minor_image_version = take_u16(bytes)?;
-        let major_subsys_version = take_u16(bytes)?;
-        let minor_subsys_version = take_u16(bytes)?;
-        let win32_version_value = take_u32(bytes)?;
-        let size_of_image = take_u32(bytes)?;
-        let size_of_headers = take_u32(bytes)?;
-        let checksum = take_u32(bytes)?;
-        let subsystem = take_u16(bytes)?;
-        let dll_characteristics = take_u16(bytes)?;
-        let size_of_stack_reserve = take_u64(bytes)?;
-        let size_of_stack_commit = take_u64(bytes)?;
-        let size_of_heap_reserve = take_u64(bytes)?;
-        let size_of_heap_commit = take_u64(bytes)?;
-        let loader_flags = take_u32(bytes)?;
-        let number_of_rva_and_sizes = take_u32(bytes)?;
+    pub fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8])> {
+        let (image_base, bytes) = take_u64(bytes)?;
+        let (section_alignment, bytes) = take_u32(bytes)?;
+        let (file_alignment, bytes) = take_u32(bytes)?;
+        let (major_os_version, bytes) = take_u16(bytes)?;
+        let (minor_os_version, bytes) = take_u16(bytes)?;
+        let (major_image_version, bytes) = take_u16(bytes)?;
+        let (minor_image_version, bytes) = take_u16(bytes)?;
+        let (major_subsys_version, bytes) = take_u16(bytes)?;
+        let (minor_subsys_version, bytes) = take_u16(bytes)?;
+        let (win32_version_value, bytes) = take_u32(bytes)?;
+        let (size_of_image, bytes) = take_u32(bytes)?;
+        let (size_of_headers, bytes) = take_u32(bytes)?;
+        let (checksum, bytes) = take_u32(bytes)?;
+        let (subsystem, bytes) = take_u16(bytes)?;
+        let (dll_characteristics, bytes) = take_u16(bytes)?;
+        let (size_of_stack_reserve, bytes) = take_u64(bytes)?;
+        let (size_of_stack_commit, bytes) = take_u64(bytes)?;
+        let (size_of_heap_reserve, bytes) = take_u64(bytes)?;
+        let (size_of_heap_commit, bytes) = take_u64(bytes)?;
+        let (loader_flags, bytes) = take_u32(bytes)?;
+        let (number_of_rva_and_sizes, bytes) = take_u32(bytes)?;
 
-        Ok( Self {
+        Ok(( Self {
             image_base, section_alignment, file_alignment,
             major_os_version, minor_os_version,
             major_image_version, minor_image_version,
@@ -289,6 +297,6 @@ impl Pe64 {
             size_of_stack_reserve, size_of_stack_commit,
             size_of_heap_reserve, size_of_heap_commit,
             loader_flags, number_of_rva_and_sizes
-        })
+        }, bytes))
     }
 }

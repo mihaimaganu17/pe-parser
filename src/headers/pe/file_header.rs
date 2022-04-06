@@ -32,21 +32,24 @@ pub struct FileHeader {
 
 
 impl FileHeader {
-    pub fn from_bytes(bytes: &mut Vec<u8>) -> Result<Self> {
-        let magic                   = take_u32(bytes)?;
-        let machine                 = take_u16(bytes)?.try_into()?;
-        let number_of_sections      = take_u16(bytes)?;
-        let time_date_stamp         = take_u32(bytes)?;
-        let pointer_to_symbol_table = take_u32(bytes)?;
-        let number_of_symbols       = take_u32(bytes)?;
-        let size_of_optional_header = take_u16(bytes)?;
-        let characteristics         = take_u16(bytes)?;
+    pub fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8])> {
+        let (magic, bytes)                   = take_u32(bytes)?;
+        let (machine, bytes)                 = take_u16(bytes)?;
+        let (number_of_sections, bytes)      = take_u16(bytes)?;
+        let (time_date_stamp, bytes)         = take_u32(bytes)?;
+        let (pointer_to_symbol_table, bytes) = take_u32(bytes)?;
+        let (number_of_symbols, bytes)       = take_u32(bytes)?;
+        let (size_of_optional_header, bytes) = take_u16(bytes)?;
+        let (characteristics, bytes)         = take_u16(bytes)?;
 
-        Ok(Self {
+        // Convert to MachineType
+        let machine = machine.try_into()?;
+
+        Ok((Self {
             magic, machine, number_of_sections, time_date_stamp,
             pointer_to_symbol_table, number_of_symbols,
             size_of_optional_header, characteristics
-        })
+        }, bytes))
     }
 
     pub fn len() -> usize {

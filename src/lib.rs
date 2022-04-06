@@ -17,9 +17,9 @@ use error::Result;
 
 /// Object representing a Portable Executable file(or PE) as described by
 /// Microsoft's documentation
-pub struct PE {
-    /// A vector of bytes representing all the byte in the file
-    data: Vec<u8>,
+pub struct PE<'pe> {
+    /// A slice of bytes representing the content in the file
+    bytes: &'pe [u8],
     /// MS-DOS Header
     pub dos_header: DosHeader,
     /// MS-DOS Stub -> Not parsed
@@ -30,40 +30,32 @@ pub struct PE {
     pub opt_header: OptionalHeader,
 }
 
-impl PE {
-    /// Attempts to parse a PE from the given `file_path`. If the path does not
-    /// exist, it returns an error
-    pub fn from_path(file_path: &str) -> Result<Self> {
-        let data = fs::read(file_path)?;
-        Self::from_bytes(&data)
-    }
-
+impl<'pe> PE<'pe> {
     /// Attempts to construct a PE from the given `bytes` slice
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        // Construct data from bytes received
-        let mut data = Vec::from(bytes);
-
+    pub fn from_bytes(bytes: &'pe [u8]) -> Result<Self> {
+        println!("{}", bytes.len());
         // Parse the MS-DOS header
-        let dos_header = DosHeader::from_bytes(
-            &mut data.drain(..DosHeader::len()).collect())?;
+        let (dos_header, bytes) = DosHeader::from_bytes(bytes)?;
 
         // Initialize the file header offset
         let file_header_offset = usize::try_from(dos_header.e_lfanew)?;
+        println!("{}", bytes.len());
+        println!("{}", file_header_offset);
 
         // Consume the MS-DOS stub (or everything until the PE header)
-        let dos_stub = data.drain(..file_header_offset - DosHeader::len())
-            .collect();
+        let (dos_stub, bytes) = bytes
+            .split_at(file_header_offset - DosHeader::len());
 
         // Read the PE File header
-        let file_header = FileHeader::from_bytes(&mut data)?;
+        let (file_header, bytes) = FileHeader::from_bytes(bytes)?;
 
         // Read the PE optional header
-        let opt_header = OptionalHeader::from_bytes(&mut data)?;
+        let (opt_header, bytes) = OptionalHeader::from_bytes(bytes)?;
 
         Ok(Self {
-            data,
+            bytes,
             dos_header,
-            dos_stub,
+            dos_stub: dos_stub.to_vec(),
             file_header,
             opt_header
         })
@@ -71,7 +63,7 @@ impl PE {
 
     /// Return how much data has not been parsed
     pub fn remaining_bytes(&self) -> usize {
-        self.data.len()
+        self.bytes.len()
     }
 }
 
@@ -94,7 +86,9 @@ mod tests {
     // TODO: Make this tests for all files in the testdata
     fn pe_read_from_path_fails() {
         let start = Instant::now();
-        let new = PE::from_path("testdata/64bit/notepad.exe").unwrap();
+        let file_path = "testdata/64bit/notepad.exe";
+        let data = fs::read(file_path).unwrap();
+        let new = PE::from_bytes(&data).unwrap();
         assert_eq!(MZ, new.dos_header.e_magic);
         assert_eq!(0xf8, new.dos_header.e_lfanew);
         assert_eq!(0x4550, new.file_header.magic);

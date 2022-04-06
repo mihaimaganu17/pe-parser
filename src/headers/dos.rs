@@ -46,37 +46,47 @@ pub struct DosHeader {
 }
 
 impl DosHeader {
-    pub fn from_bytes(bytes: &mut Vec<u8>) -> Result<Self> {
-        let e_magic     = take_u16(bytes)?;
-        let e_cblp      = take_u16(bytes)?;
-        let e_cp        = take_u16(bytes)?;
-        let e_crlc      = take_u16(bytes)?;
-        let e_cparhdr   = take_u16(bytes)?;
-        let e_minalloc  = take_u16(bytes)?;
-        let e_maxalloc  = take_u16(bytes)?;
-        let e_ss        = take_u16(bytes)?;
-        let e_sp        = take_u16(bytes)?;
-        let e_csum      = take_u16(bytes)?;
-        let e_ip        = take_u16(bytes)?;
-        let e_cs        = take_u16(bytes)?;
-        let e_lfarlc    = take_u16(bytes)?;
-        let e_ovno      = take_u16(bytes)?;
+    pub fn from_bytes<'pe>(bytes: &'pe [u8]) -> Result<(Self, &[u8])> {
+        let (e_magic, bytes)     = take_u16(bytes)?;
+        let (e_cblp, bytes)      = take_u16(bytes)?;
+        let (e_cp, bytes)        = take_u16(bytes)?;
+        let (e_crlc, bytes)      = take_u16(bytes)?;
+        let (e_cparhdr, bytes)   = take_u16(bytes)?;
+        let (e_minalloc, bytes)  = take_u16(bytes)?;
+        let (e_maxalloc, bytes)  = take_u16(bytes)?;
+        let (e_ss, bytes)        = take_u16(bytes)?;
+        let (e_sp, bytes)        = take_u16(bytes)?;
+        let (e_csum, bytes)      = take_u16(bytes)?;
+        let (e_ip, bytes)        = take_u16(bytes)?;
+        let (e_cs, bytes)        = take_u16(bytes)?;
+        let (e_lfarlc, bytes)    = take_u16(bytes)?;
+        let (e_ovno, bytes)      = take_u16(bytes)?;
 
-        let e_res = bytes.drain(..8).collect::<Vec<u8>>().chunks(2)
-            .map(|x| take_u16(&mut x.to_vec()).unwrap()).collect();
+        let mut e_res = Vec::with_capacity(4usize);
+        for chunk in bytes.chunks(2) {
+            let (value, bytes) = take_u16(bytes)?;
+            e_res.push(value);
+        }
 
-        let e_oemid     = take_u16(bytes)?;
-        let e_oeminfo   = take_u16(bytes)?;
+        let (_, bytes) = bytes.split_at(8usize);
 
-        let e_res2 = bytes.drain(..20).collect::<Vec<u8>>().chunks(2)
-            .map(|x| take_u16(&mut x.to_vec()).unwrap()).collect();
-        let e_lfanew    = take_u32(bytes)?;
+        let (e_oemid, bytes)     = take_u16(bytes)?;
+        let (e_oeminfo, bytes)   = take_u16(bytes)?;
 
-        Ok( DosHeader {
+        let mut e_res2 = Vec::with_capacity(10usize);
+        for chunk in bytes.chunks(2) {
+            let (value, bytes) = take_u16(bytes)?;
+            e_res.push(value);
+        }
+        let (_, bytes) = bytes.split_at(20usize);
+
+        let (e_lfanew, bytes)    = take_u32(bytes)?;
+
+        Ok((DosHeader {
             e_magic, e_cblp, e_cp, e_crlc, e_cparhdr, e_minalloc, e_maxalloc,
             e_ss, e_sp, e_csum, e_ip, e_cs, e_lfarlc, e_ovno, e_res, e_oemid,
             e_oeminfo, e_res2, e_lfanew
-        })
+        }, bytes))
     }
 
     pub fn len() -> usize {
