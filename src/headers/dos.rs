@@ -62,23 +62,22 @@ impl DosHeader {
         let (e_lfarlc, bytes)    = take_u16(bytes)?;
         let (e_ovno, bytes)      = take_u16(bytes)?;
 
+        let (e_res_bytes, bytes) = bytes.split_at(8usize);
         let mut e_res = Vec::with_capacity(4usize);
-        for chunk in bytes.chunks(2) {
-            let (value, bytes) = take_u16(bytes)?;
+        for chunk in e_res_bytes.chunks(2) {
+            let (value, e_res_bytes) = take_u16(e_res_bytes)?;
             e_res.push(value);
         }
-
-        let (_, bytes) = bytes.split_at(8usize);
 
         let (e_oemid, bytes)     = take_u16(bytes)?;
         let (e_oeminfo, bytes)   = take_u16(bytes)?;
 
+        let (e_res2_bytes, bytes) = bytes.split_at(20usize);
         let mut e_res2 = Vec::with_capacity(10usize);
-        for chunk in bytes.chunks(2) {
-            let (value, bytes) = take_u16(bytes)?;
-            e_res.push(value);
+        for chunk in e_res2_bytes.chunks(2) {
+            let (value, e_res2_bytes) = take_u16(bytes)?;
+            e_res2.push(value);
         }
-        let (_, bytes) = bytes.split_at(20usize);
 
         let (e_lfanew, bytes)    = take_u32(bytes)?;
 

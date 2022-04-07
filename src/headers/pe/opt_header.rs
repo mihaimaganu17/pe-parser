@@ -27,7 +27,9 @@ pub struct OptionalHeader {
     /// section when it is loaded into memory.
     base_of_code: u32,
     /// Windows specific fields
-    pub win_fields: WindowsSpecific
+    pub win_fields: WindowsSpecific,
+    /// Data Directories
+    pub data_dirs: Vec<DataDirectory>
 }
 
 impl OptionalHeader {
@@ -43,6 +45,16 @@ impl OptionalHeader {
         let (base_of_code, bytes) = take_u32(bytes)?;
         let (win_fields, bytes) = WindowsSpecific::from_bytes(magic, bytes)?;
 
+        // Parse Data Directories
+        let datadir_len: usize = win_fields.get_datadir_len().try_into()?;
+        let (datadir_bytes, bytes) = bytes
+            .split_at(DataDirectory::size() * datadir_len);
+        let mut data_dirs = Vec::with_capacity(datadir_len);
+        for bytes in datadir_bytes.chunks(DataDirectory::size()) {
+            let (data_dir, bytes) = DataDirectory::from_bytes(bytes)?;
+            data_dirs.push(data_dir);
+        }
+
         Ok(( Self {
             magic,
             major_linker_version,
@@ -52,8 +64,18 @@ impl OptionalHeader {
             size_of_uninitialized_data,
             addr_of_entry_point,
             base_of_code,
-            win_fields
+            win_fields,
+            data_dirs
         }, bytes))
+    }
+
+    pub fn get_entry_point(&self) -> u32 {
+        self.addr_of_entry_point
+    }
+
+    /// Returns the number of DataDirectory entries
+    pub fn data_dir_len(&self) -> u32 {
+        self.win_fields.get_datadir_len()
     }
 }
 
@@ -96,6 +118,38 @@ impl WindowsSpecific {
             ImageType::ROM => Err(PeError::Unimplemented),
             ImageType::Unknown => Err(PeError::Unimplemented)
         }
+    }
+
+    /// Function that return the value for the `number_of_rva_and_sizes` from
+    /// this optional header
+    pub fn get_datadir_len(&self) -> u32 {
+        match &self {
+            Self::PE32(pe32) => pe32.number_of_rva_and_sizes,
+            Self::PE64(pe64) => pe64.number_of_rva_and_sizes
+        }
+    }
+}
+
+pub struct DataDirectory {
+    /// RVA of the table, relative to the base address of the image when the
+    /// table is loaded
+    pub virtual_address: u32,
+    /// Size in bytes of the data directory
+    pub size: u32,
+}
+
+impl DataDirectory {
+    pub fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8])> {
+        let (virtual_address, bytes) = take_u32(bytes)?;
+        let (size, bytes) = take_u32(bytes)?;
+        Ok(( Self {
+            virtual_address,
+            size
+        }, bytes))
+    }
+
+    pub fn size() -> usize {
+        std::mem::size_of::<u32>() * 2
     }
 }
 
@@ -160,7 +214,7 @@ pub struct Pe32 {
     loader_flags: u32,
     /// The number of data-directory entries in the remainder of the optional
     /// header. Each describes a location and size.
-    number_of_rva_and_sizes: u32,
+    pub number_of_rva_and_sizes: u32,
 }
 
 impl Pe32 {
@@ -260,7 +314,7 @@ pub struct Pe64 {
     loader_flags: u32,
     /// The number of data-directory entries in the remainder of the optional
     /// header. Each describes a location and size.
-    number_of_rva_and_sizes: u32,
+    pub number_of_rva_and_sizes: u32,
 }
 
 impl Pe64 {
